@@ -1,0 +1,202 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    ports:
+      - "9092:9092"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/bash", "-c"]
+    command: >
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic questions_in --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic llm_requests --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic llm_responses --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic llm_errors --partitions 1 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic regeneration_requests --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic validated_responses --partitions 3 --replication-factor 1
+
+  mongo:
+    image: mongo:6.0
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  init-mongo:
+    image: mongo:6.0
+    depends_on:
+      - mongo
+    environment:
+      MONGO_INITDB_HOST: mongo
+      MONGO_INITDB_PORT: 27017
+      MONGO_INITDB_DATABASE: yahoo_db
+      MONGO_INITDB_COLLECTION: questions
+    volumes:
+      - ./mongo-init/bdd.json:/bdd.json:ro
+      - ./mongo-init/init.sh:/init.sh:ro
+    entrypoint: ["/bin/bash", "/init.sh"]
+
+  buffer-service:
+    build:
+      context: .
+      dockerfile: buffer_service/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    command:
+      [
+        "--policy", "lru",
+        "--size", "1024",
+        "--ttl", "3600",
+        "--mongo-uri", "mongodb://mongo:27017/",
+        "--mongo-db", "yahoo_db",
+        "--mongo-coll", "results",
+        "--input-topic", "questions_in",
+        "--llm-topic", "llm_requests",
+        "--validated-topic", "validated_responses",
+        "--regeneration-topic", "regeneration_requests",
+        "--group-id", "buffer-service"
+      ]
+    depends_on:
+      - kafka-init
+      - mongo
+
+  traffic-producer:
+    build:
+      context: .
+      dockerfile: producer_service/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    command:
+      [
+        "--total", "100",
+        "--distribution", "poisson",
+        "--lambda", "1.5",
+        "--mongo-uri", "mongodb://mongo:27017/",
+        "--mongo-db", "yahoo_db",
+        "--mongo-coll", "questions",
+        "--output", "/data/traffic",
+        "--topic", "questions_in",
+        "--partitions", "3",
+        "--replication-factor", "1"
+      ]
+    volumes:
+      - ./data_collected:/data
+    depends_on:
+      - kafka-init
+      - mongo
+
+  text-ai-consumer:
+    build:
+      context: .
+      dockerfile: text_ai_service/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    command:
+      [
+        "--request-topic", "llm_requests",
+        "--response-topic", "llm_responses",
+        "--error-topic", "llm_errors",
+        "--group-id", "text-model-consumer"
+      ]
+    depends_on:
+      - kafka-init
+
+  repository-service:
+    build:
+      context: .
+      dockerfile: repository_service/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    command:
+      [
+        "--mongo-uri", "mongodb://mongo:27017/",
+        "--db", "yahoo_db",
+        "--collection", "results",
+        "--metrics", "metrics",
+        "--topic", "validated_responses",
+        "--group-id", "repository-service"
+      ]
+    depends_on:
+      - kafka-init
+      - mongo
+
+  flink-jobmanager:
+    build:
+      context: .
+      dockerfile: flink_job/Dockerfile
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      FLINK_PARALLELISM: 1
+      SCORE_THRESHOLD: 0.65
+      MAX_RETRIES: 3
+      LLM_RESPONSES_TOPIC: llm_responses
+      VALIDATED_TOPIC: validated_responses
+      REGEN_TOPIC: regeneration_requests
+      FLINK_PROPERTIES: "jobmanager.rpc.address: flink-jobmanager"
+    command: ["jobmanager"]
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka-init
+
+  flink-taskmanager:
+    build:
+      context: .
+      dockerfile: flink_job/Dockerfile
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      FLINK_PROPERTIES: "jobmanager.rpc.address: flink-jobmanager"
+    command: ["taskmanager"]
+    depends_on:
+      - flink-jobmanager
+
+  flink-submit:
+    build:
+      context: .
+      dockerfile: flink_job/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+      FLINK_PARALLELISM: 1
+      SCORE_THRESHOLD: 0.65
+      MAX_RETRIES: 3
+      LLM_RESPONSES_TOPIC: llm_responses
+      VALIDATED_TOPIC: validated_responses
+      REGEN_TOPIC: regeneration_requests
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        until nc -z "$$JOB_MANAGER_RPC_ADDRESS" 8081; do
+          sleep 2
+        done
+        flink run -m $$JOB_MANAGER_RPC_ADDRESS:8081 -py /opt/flink/usrlib/stream_quality_job.py
+    depends_on:
+      - flink-jobmanager
+      - flink-taskmanager
+      - kafka-init
+
+volumes:
+  mongo_data:

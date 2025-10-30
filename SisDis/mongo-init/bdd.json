@@ -1,0 +1,82 @@
+[
+  {
+    "id_pregunta": "1",
+    "pregunta": "¿Qué es un sistema distribuido?",
+    "contenido": "Un sistema distribuido es un conjunto de computadoras conectadas en red que colaboran para resolver tareas comunes, compartiendo recursos y coordinación.",
+    "respuesta_dataset": "Conjunto de computadoras que trabajan coordinadas para lograr un objetivo común.",
+    "score": 0.9,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "2",
+    "pregunta": "¿Qué es Apache Kafka?",
+    "contenido": "Kafka es una plataforma distribuida para el manejo de flujos de datos en tiempo real, diseñada para publicar, suscribirse y procesar eventos.",
+    "respuesta_dataset": "Sistema de mensajería distribuido basado en logs, ideal para streaming de datos.",
+    "score": 0.85,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "3",
+    "pregunta": "¿Qué ventajas tiene usar contenedores Docker?",
+    "contenido": "Los contenedores permiten aislar aplicaciones, simplificar el despliegue y garantizar portabilidad entre entornos.",
+    "respuesta_dataset": "Aislamiento, portabilidad y facilidad de despliegue de aplicaciones.",
+    "score": 0.88,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "4",
+    "pregunta": "¿Qué es un microservicio?",
+    "contenido": "Es un estilo arquitectónico que estructura una aplicación como un conjunto de servicios pequeños, independientes y desplegables individualmente.",
+    "respuesta_dataset": "Componente independiente que realiza una función específica dentro de una aplicación distribuida.",
+    "score": 0.93,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "5",
+    "pregunta": "¿Cuál es la diferencia entre paralelismo y concurrencia?",
+    "contenido": "La concurrencia implica manejar múltiples tareas que pueden avanzar al mismo tiempo, mientras que el paralelismo las ejecuta literalmente al mismo tiempo en múltiples núcleos.",
+    "respuesta_dataset": "Concurrencia gestiona múltiples tareas, paralelismo las ejecuta simultáneamente.",
+    "score": 0.82,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "6",
+    "pregunta": "¿Qué papel cumple Zookeeper en un clúster Kafka?",
+    "contenido": "Zookeeper gestiona la configuración, sincronización y coordinación entre los brokers del clúster Kafka.",
+    "respuesta_dataset": "Coordina y mantiene la configuración y estado del clúster Kafka.",
+    "score": 0.87,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "7",
+    "pregunta": "¿Qué es Apache Flink?",
+    "contenido": "Apache Flink es un motor de procesamiento de flujos y batch distribuido que permite análisis de datos en tiempo real.",
+    "respuesta_dataset": "Framework para procesamiento distribuido de datos en streaming y batch.",
+    "score": 0.32,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "8",
+    "pregunta": "¿Qué diferencia hay entre escalabilidad vertical y horizontal?",
+    "contenido": "La escalabilidad vertical mejora la capacidad de un solo nodo; la horizontal añade más nodos al sistema.",
+    "respuesta_dataset": "Vertical: más potencia en un servidor. Horizontal: más servidores.",
+    "score": 0.84,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "9",
+    "pregunta": "¿Qué es MongoDB?",
+    "contenido": "MongoDB es una base de datos NoSQL orientada a documentos que almacena la información en formato BSON similar a JSON.",
+    "respuesta_dataset": "Base de datos NoSQL basada en documentos para almacenamiento flexible.",
+    "score": 0.6,
+    "aceptado": true
+  },
+  {
+    "id_pregunta": "10",
+    "pregunta": "¿Qué significa tolerancia a fallos en sistemas distribuidos?",
+    "contenido": "Es la capacidad de un sistema de continuar funcionando correctamente incluso si alguno de sus componentes falla.",
+    "respuesta_dataset": "Capacidad del sistema de seguir operativo ante fallas parciales.",
+    "score": 0.45,
+    "aceptado": true
+  }
+]
